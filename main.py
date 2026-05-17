@@ -1,14 +1,27 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from pydantic import BaseModel, Field
 import uvicorn
+from sqlalchemy.orm import Session
+
+# Services and database 
 from services.dlp_service import dlp_agent
+from services.mock_llm import mock_llm
+from database import SessionLocal, AuditLog
 
 # START to FastAPI: 
 app = FastAPI(
     title="Aegis-DLP Core API",
     description="Autonomous Agent-Based Middleware for Data Loss Prevention (DLP)",
-    version="0.2.0"
+    version="1.0.0"
 )
+
+# Database Session (Dependency Injection)
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 # define the structure (schema) of the incoming request data.
 class PromptRequest(BaseModel):
@@ -17,29 +30,39 @@ class PromptRequest(BaseModel):
 
 # define the structure of the returning response
 class PromptResponse(BaseModel):
-    original_prompt: str
-    sanitized_prompt: str
-    is_secure: bool
+    llm_response: str
     status: str
-    detected_entities: list
 
 @app.get("/")
 def read_root():
     return {"status": "healthy", "service": "Aegis-DLP Backend"}
 
 @app.post("/chat", response_model=PromptResponse)
-async def process_prompt(payload: PromptRequest):
+async def process_prompt(payload: PromptRequest, db: Session = Depends(get_db)):
     try:
-        ham_prompt = payload.prompt
+        # 1. Aşama: Gelen metni analiz et ve maskele
+        analiz = dlp_agent.sanitize_text(payload.prompt)
+        
+        # 2. Aşama: Veritabanına (Audit Log) kaydet
+        yeni_log = AuditLog(
+            user_id=payload.user_id,
+            original_prompt=payload.prompt,
+            sanitized_prompt=analiz["sanitized_text"],
+            is_secure=analiz["is_secure"],
+            detected_entities=",".join(analiz["detected_entities"])
+        )
+        db.add(yeni_log)
+        db.commit()
 
-        analiz_sonucu = dlp_agent.sanitize_text(ham_prompt)
+        # 3. Aşama: Maskelenmiş metni sahte LLM'e yolla
+        llm_cevabi = await mock_llm.generate_response(analiz["sanitized_text"])
+
+        # 4. Aşama: LLM'den gelen cevabı de-anonymize et (eski haline çevir)
+        final_cevap = dlp_agent.deanonymize_text(llm_cevabi, analiz["entity_mapping"])
 
         return PromptResponse(
-            original_prompt=ham_prompt,
-            sanitized_prompt=analiz_sonucu["sanitized_text"],
-            is_secure=analiz_sonucu["is_secure"],
-            detected_entities=analiz_sonucu["detected_entities"],
-            status="Processed via Presidio AI"
+            llm_response=final_cevap,
+            status="Success: Processed, Logged and Re-identified"
         )
         
     except Exception as e:

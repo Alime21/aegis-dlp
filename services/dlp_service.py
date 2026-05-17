@@ -29,7 +29,8 @@ class DLPService:
         analyzer_results = self.analyzer.analyze(
             text=text, 
             entities=target_entities, 
-            language='en'
+            language='en',
+            score_threshold=0.60
         )
 
        # 3. Masking Phase: Replace found data with [MASKED] (or <ENTITY_TYPE>)
@@ -38,14 +39,35 @@ class DLPService:
             analyzer_results=analyzer_results
         )
 
-        # 4. Return the operation result (If masking was performed, is_secure becomes False)
+        # --- DE-ANONYMIZE Dictionary --- #
+
+        entity_mapping = {}
+        for res in analyzer_results:
+            orijinal_deger = text[res.start:res.end]
+            etiket = f"<{res.entity_type}>"
+
+            if etiket not in entity_mapping:
+                entity_mapping[etiket] = orijinal_deger
+                
+            entity_mapping[etiket] = orijinal_deger
+
         is_secure = len(analyzer_results) == 0
 
         return {
             "sanitized_text": anonymized_result.text,
             "is_secure": is_secure,
-            "detected_entities": [res.entity_type for res in analyzer_results]
+            "detected_entities": [res.entity_type for res in analyzer_results],
+            "entity_mapping": entity_mapping
         }
+    
+    def deanonymize_text(self, text: str, mapping: dict) -> str:
+        """
+        It converts the masked response from the LLM back to its original form using the dictionary in memory.
+        """
+        for etiket, orijinal_deger in mapping.items():
+            text = text.replace(etiket, orijinal_deger)
+        return text
+
 
 # To use the service throughout the project, we create an instance (copy) of it.
 dlp_agent = DLPService()    
