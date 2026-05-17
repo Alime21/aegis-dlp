@@ -11,7 +11,8 @@ import SwiftUI
 struct AegisDLPDashboardApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            MainTabView()
+                .preferredColorScheme(.dark)
         }
     }
 }
