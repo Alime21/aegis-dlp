@@ -1,12 +1,13 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 import uvicorn
+from services.dlp_service import dlp_agent
 
 # START to FastAPI: 
 app = FastAPI(
     title="Aegis-DLP Core API",
     description="Autonomous Agent-Based Middleware for Data Loss Prevention (DLP)",
-    version="0.1.0"
+    version="0.2.0"
 )
 
 # define the structure (schema) of the incoming request data.
@@ -20,6 +21,7 @@ class PromptResponse(BaseModel):
     sanitized_prompt: str
     is_secure: bool
     status: str
+    detected_entities: list
 
 @app.get("/")
 def read_root():
@@ -29,19 +31,15 @@ def read_root():
 async def process_prompt(payload: PromptRequest):
     try:
         ham_prompt = payload.prompt
-        temiz_prompt = ham_prompt
-        guvenli_mi = True
-        
-        # Basit bir PoC (Konsept Kanıtı) maskeleme testi
-        if "1234" in ham_prompt:
-            temiz_prompt = ham_prompt.replace("1234", "[REDACTED_CREDIT_CARD]")
-            guvenli_mi = False
+
+        analiz_sonucu = dlp_agent.sanitize_text(ham_prompt)
 
         return PromptResponse(
             original_prompt=ham_prompt,
-            sanitized_prompt=temiz_prompt,
-            is_secure=guvenli_mi,
-            status="Processed successfully"
+            sanitized_prompt=analiz_sonucu["sanitized_text"],
+            is_secure=analiz_sonucu["is_secure"],
+            detected_entities=analiz_sonucu["detected_entities"],
+            status="Processed via Presidio AI"
         )
         
     except Exception as e:
