@@ -70,3 +70,27 @@ async def process_prompt(payload: PromptRequest, db: Session = Depends(get_db)):
 
 if __name__ == "__main__":
     uvicorn.run("main.py:app", host="127.0.0.1", port=8000, reload=True)
+
+
+@app.get("/logs")
+async def get_audit_logs(db: Session = Depends(get_db)):
+    """
+    Dashboard'da göstermek üzere en son 20 güvenlik logunu getirir.
+    """
+    # Veritabanından logları en yeniden eskiye doğru sıralayarak çek
+    logs = db.query(AuditLog).order_by(AuditLog.timestamp.desc()).limit(20).all()
+    
+    # iOS tarafının rahat okuyabilmesi için veriyi temiz bir JSON listesine çeviriyoruz
+    log_list = []
+    for log in logs:
+        log_list.append({
+            "id": log.id,
+            "timestamp": log.timestamp.strftime("%H:%M"), # Saati formatlıyoruz
+            "user_id": log.user_id,
+            "is_secure": log.is_secure,
+            "detected_entities": log.detected_entities,
+            "original_prompt": log.original_prompt,
+            "sanitized_prompt": log.sanitized_prompt
+        })
+        
+    return log_list    

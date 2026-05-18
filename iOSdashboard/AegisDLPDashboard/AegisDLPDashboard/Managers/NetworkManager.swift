@@ -40,4 +40,17 @@ class NetworkManager {
         let decodedResponse = try JSONDecoder().decode(PromptResponse.self, from: data)
         return decodedResponse
     }
+    // --- LOGLARI ÇEKME FONKSİYONU ---
+        func fetchLogs() async throws -> [AuditLog] {
+            // Backend API'mizin log ucu
+            guard let url = URL(string: "http://127.0.0.1:8000/logs") else {
+                throw URLError(.badURL)
+            }
+            
+            let (data, _) = try await URLSession.shared.data(from: url)
+            
+            // Gelen JSON verisini AuditLog dizisine çeviriyoruz
+            let logs = try JSONDecoder().decode([AuditLog].self, from: data)
+            return logs
+        }
 }

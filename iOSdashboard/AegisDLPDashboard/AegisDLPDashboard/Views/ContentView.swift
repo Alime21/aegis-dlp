@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct ContentView: View {
-    @StateObject private var viewModel = DashboardViewModel()
+    @StateObject private var viewModel = ContentViewModel()
     @State private var inputPrompt: String = ""
     
     var body: some View {
@@ -39,7 +39,11 @@ struct ContentView: View {
                 
                 // --- GÜVENLİ GÖNDER BUTONU ---
                 Button(action: {
-                    viewModel.executeChat(prompt: inputPrompt)
+                    // İnternet işlemini bir Task içine alıp başına await ekliyoruz
+                    Task {
+                        await viewModel.executeChat(prompt: inputPrompt)
+                        inputPrompt = "" // Mesaj gittikten sonra kutuyu temizler
+                    }
                 }) {
                     if viewModel.isLoading {
                         ProgressView()

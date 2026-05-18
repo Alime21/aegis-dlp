@@ -1,23 +1,9 @@
 import SwiftUI
 
-// Şimdilik arayüzü test etmek için sahte (Mock) log modeli
-struct IncidentLog: Identifiable {
-    let id = UUID()
-    let timestamp: String
-    let user: String
-    let detectedEntities: String
-    let status: String
-}
-
 struct DashboardView: View {
-    // Arayüzde göstereceğimiz sahte veriler (İleride bunu veritabanından çekeceğiz)
-    let recentLogs = [
-        IncidentLog(timestamp: "14:05", user: "emp_4521", detectedEntities: "CREDIT_CARD", status: "BLOCKED"),
-        IncidentLog(timestamp: "13:42", user: "emp_1099", detectedEntities: "PASSWORD, PERSON", status: "BLOCKED"),
-        IncidentLog(timestamp: "11:20", user: "emp_8832", detectedEntities: "LOCATION", status: "BLOCKED")
-    ]
+    // 1. GERÇEK VERİ BAĞLANTISI BURADA BAŞLIYOR
+    @StateObject private var viewModel = DashboardViewModel()
     
-    // Grid (Izgara) sütun ayarı
     let columns = [
         GridItem(.flexible()),
         GridItem(.flexible())
@@ -26,13 +12,12 @@ struct DashboardView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                // Senin tasarımına uygun koyu arka plan
                 Color.black.edgesIgnoringSafeArea(.all)
                 
                 ScrollView {
                     VStack(alignment: .leading, spacing: 25) {
                         
-                        // 1. ÜST KISIM: ÖZET KARTLARI
+                        // --- 1. ÜST KISIM: DİNAMİK ÖZET KARTLARI ---
                         Text("SİSTEM ÖZETİ")
                             .font(.headline)
                             .foregroundColor(.green)
@@ -40,38 +25,61 @@ struct DashboardView: View {
                             .padding(.horizontal)
                         
                         LazyVGrid(columns: columns, spacing: 15) {
-                            SummaryCard(title: "ENGELLENEN SIZINTI", value: "1,284", icon: "shield.checkerboard", color: .green)
-                            SummaryCard(title: "AKTİF TEHDİTLER", value: "3", icon: "exclamationmark.triangle.fill", color: .red)
-                            SummaryCard(title: "TARANAN PROMPT", value: "45.2K", icon: "cpu", color: .blue)
+                            // Değerleri viewModel.logs üzerinden dinamik hesaplıyoruz!
+                            SummaryCard(title: "TARANAN PROMPT", value: "\(viewModel.logs.count)", icon: "cpu", color: .blue)
+                            SummaryCard(title: "AKTİF TEHDİTLER", value: "\(viewModel.logs.filter { !$0.detectedEntities.isEmpty }.count)", icon: "exclamationmark.triangle.fill", color: .red)
+                            SummaryCard(title: "GÜVENLİ SIZINTI", value: "\(viewModel.logs.filter { $0.isSecure }.count)", icon: "shield.checkerboard", color: .green)
                             SummaryCard(title: "SİSTEM DURUMU", value: "STABİL", icon: "server.rack", color: .green)
                         }
                         .padding(.horizontal)
                         
                         Divider().background(Color.green.opacity(0.3)).padding(.vertical)
                         
-                        // 2. ALT KISIM: SON İHLALLER LİSTESİ
-                        Text("SON GÜVENLİK İHLALLERİ")
-                            .font(.headline)
-                            .foregroundColor(.green)
-                            .tracking(2)
-                            .padding(.horizontal)
-                        
-                        VStack(spacing: 12) {
-                            ForEach(recentLogs) { log in
-                                IncidentRow(log: log)
+                        // --- 2. ALT KISIM: SON İHLALLER LİSTESİ ---
+                        HStack {
+                            Text("SON GÜVENLİK İHLALLERİ")
+                                .font(.headline)
+                                .foregroundColor(.green)
+                                .tracking(2)
+                            
+                            Spacer()
+                            
+                            // Sayfayı manuel yenilemek için küçük bir buton
+                            Button(action: { Task { await viewModel.loadLogs() } }) {
+                                Image(systemName: "arrow.clockwise")
+                                    .foregroundColor(.green)
                             }
                         }
                         .padding(.horizontal)
+                        
+                        if viewModel.logs.isEmpty {
+                            Text("Ağdan veriler çekiliyor veya henüz log yok...")
+                                .font(.caption)
+                                .foregroundColor(.gray)
+                                .padding()
+                        } else {
+                            VStack(spacing: 12) {
+                                // GERÇEK VERİLERİ (En yeniler üstte olacak şekilde) EKRANA BASIYORUZ
+                                ForEach(viewModel.logs.reversed()) { log in
+                                    IncidentRow(log: log)
+                                }
+                            }
+                            .padding(.horizontal)
+                        }
                     }
                     .padding(.top)
                 }
             }
             .navigationBarHidden(true)
+            // SAYFA AÇILDIĞINDA OTOMATİK VERİ ÇEK
+            .task {
+                await viewModel.loadLogs()
+            }
         }
     }
 }
 
-// Ozet Kartı Alt Bileşeni (Sub-View)
+// Ozet Kartı Alt Bileşeni (Değişmedi, aynı mükemmel tasarım)
 struct SummaryCard: View {
     let title: String
     let value: String
@@ -106,18 +114,21 @@ struct SummaryCard: View {
     }
 }
 
-// Liste Satırı Alt Bileşeni (Sub-View)
+// Liste Satırı Alt Bileşeni - GERÇEK (AuditLog) MODELE UYARLANDI
 struct IncidentRow: View {
-    let log: IncidentLog
+    let log: AuditLog // Artık sahte IncidentLog değil, backend'den gelen AuditLog
     
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 5) {
-                Text(log.user)
+                Text(log.userId)
                     .font(.subheadline)
                     .bold()
                     .foregroundColor(.white)
-                Text("Tespit: \(log.detectedEntities)")
+                
+                // Backend'den gelen etiket dizisini arasına virgül koyarak yazdırıyoruz
+                let entities = log.detectedEntities.isEmpty ? "Yok" : log.detectedEntities.joined(separator: ", ")
+                Text("Tespit: \(entities)")
                     .font(.caption)
                     .foregroundColor(.gray)
             }
@@ -125,16 +136,18 @@ struct IncidentRow: View {
             Spacer()
             
             VStack(alignment: .trailing, spacing: 5) {
-                Text(log.timestamp)
+                // Sadece saati (örneğin 14:05) alacak küçük bir formatlama
+                Text(String(log.timestamp.prefix(16).suffix(5)))
                     .font(.caption)
                     .foregroundColor(.gray)
-                Text(log.status)
+                
+                Text(log.isSecure ? "BLOCKED" : "PASS")
                     .font(.caption2)
                     .bold()
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
-                    .background(Color.red.opacity(0.2))
-                    .foregroundColor(.red)
+                    .background(log.isSecure ? Color.red.opacity(0.2) : Color.gray.opacity(0.2))
+                    .foregroundColor(log.isSecure ? .red : .gray)
                     .cornerRadius(4)
             }
         }
@@ -143,8 +156,3 @@ struct IncidentRow: View {
         .cornerRadius(8)
     }
 }
-
-#Preview {
-    DashboardView()
-}
-
