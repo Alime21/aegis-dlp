@@ -1,16 +1,22 @@
 import asyncio
 
 class MockLLMService:
-    async def generate_response(self, prompt: str) -> str:
+    async def generate_response(self, text: str) -> str:
         """
          It receives the masked prompt and responds as if it were OpenAI.
          It thinks for 1 second and returns a logical answer.
         """
+        # Gerçek bir LLM gibi 1 saniye düşünme süresi simülasyonu
         await asyncio.sleep(1)
-        if "<CREDIT_CARD>" in prompt:
-            return f"I have initiated your transaction for the card numbered <CREDIT_CARD> that you specified in the system. Do you have any other requests, <PERSON>?"
-        elif "<PASSWORD>" in prompt:
-            return "Due to security policies, I cannot verify your password (<PASSWORD>) in plain text in our systems."
-            return "Your request has been received. How can I help you?"
-
+        
+        if not text:
+            return "Boş metin gönderildi."
+        
+        # Güvenlik politikası uyarısı (şifre vs. varsa)
+        if "<PASSWORD>" in text:
+            return f"Due to security policies, I cannot verify your password ({text}) in plain text in our systems."
+        
+        # Standart cevap
+        return f"İşleminiz şu metin üzerinden başarıyla gerçekleştirildi: {text}"
+        
 mock_llm = MockLLMService()

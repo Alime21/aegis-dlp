@@ -22,6 +22,13 @@ class DLPService:
         self.analyzer = AnalyzerEngine(nlp_engine=nlp_engine)
         self.anonymizer = AnonymizerEngine()
 
+        kart_deseni = Pattern(
+            name="kart_yakalayici",
+            regex=r"\b(?:\d[ -]*?){13,16}\b", 
+            score=0.95
+        )
+        kart_tanimlayici = PatternRecognizer(supported_entity="CREDIT_CARD", patterns=[kart_deseni])
+
         sifre_deseni = Pattern(
             name="sifre_yakalayici", 
             regex=r"(?i)(?:şifr\w*|password|parola\w*)(?:\s*[:=]\s*|\s+)(\S+)", 
@@ -89,6 +96,9 @@ class DLPService:
         """
         It converts the masked response from the LLM back to its original form using the dictionary in memory.
         """
+        if not text:
+            return "Boş yanıt alındı."
+        
         for etiket, orijinal_deger in mapping.items():
             text = text.replace(etiket, orijinal_deger)
         return text

@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException, Depends
 from pydantic import BaseModel, Field
 import uvicorn
 from sqlalchemy.orm import Session
+import traceback
 
 # Services and database 
 from services.dlp_service import dlp_agent
@@ -66,6 +67,12 @@ async def process_prompt(payload: PromptRequest, db: Session = Depends(get_db)):
         )
         
     except Exception as e:
+        # Hatanın ne olduğunu VS Code terminaline KIPKIRMIZI basacak kod:
+        print("\n" + "="*50)
+        print("SİSTEM ÇÖKTÜ! İŞTE DETAYI:")
+        traceback.print_exc()
+        print("="*50 + "\n")
+        
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
