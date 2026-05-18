@@ -16,6 +16,12 @@ app = FastAPI(
     version="1.0.0"
 )
 
+CURRENT_POLICIES = {
+    "credit_card": True,
+    "password": True,
+    "tckn": True
+}
+
 # Database Session (Dependency Injection)
 def get_db():
     db = SessionLocal()
@@ -23,6 +29,28 @@ def get_db():
         yield db
     finally:
         db.close()
+
+# Data structure to hold the status of the rules      
+class PolicyUpdateRequest(BaseModel):
+    credit_card: bool
+    password: bool
+    tckn: bool
+
+@app.get("/policies")
+def get_policies():
+    """iOS uygulamasının başlangıçta kuralların durumunu öğrenmesi için"""
+    return CURRENT_POLICIES
+
+@app.put("/policies")
+def update_policies(payload: PolicyUpdateRequest):
+    """iOS uygulamasındaki Toggle butonlarına basıldığında tetiklenecek uç"""
+    global CURRENT_POLICIES
+    CURRENT_POLICIES["credit_card"] = payload.credit_card
+    CURRENT_POLICIES["password"] = payload.password
+    CURRENT_POLICIES["tckn"] = payload.tckn
+    
+    print(f"KURAL GÜNCELLENDİ: {CURRENT_POLICIES}")
+    return {"status": "updated", "policies": CURRENT_POLICIES}
 
 # define the structure (schema) of the incoming request data.
 class PromptRequest(BaseModel):
