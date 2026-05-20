@@ -28,6 +28,9 @@ CURRENT_POLICIES = {
     "tckn": True
 }
 
+# Tüm sistemi durduracak Acil Durum Şalteri (True = Açık/Normal, False = Kapalı/Kriz)
+SYSTEM_ACTIVE = True
+
 # ========================================== #
 # 3. VERİTABANI BAĞLANTISI (DEPENDENCY)
 # ========================================== #
@@ -61,6 +64,10 @@ class PolicyUpdateRequest(BaseModel):
 class ActionRequest(BaseModel):
     action: str  # "APPROVED" veya "BLOCKED"
 
+# -- Acil durum --
+class SystemStatusRequest(BaseModel):
+    is_active: bool
+
 # ========================================== #
 # 5. SİSTEM VE KURAL YÖNETİMİ (POLICIES)
 # ========================================== #
@@ -84,12 +91,35 @@ def update_policies(payload: PolicyUpdateRequest):
     print(f"⚙️ KURAL GÜNCELLENDİ: {CURRENT_POLICIES}")
     return {"status": "updated", "policies": CURRENT_POLICIES}
 
+@app.get("/system/status")
+def get_system_status():
+    return {"is_active": SYSTEM_ACTIVE}
+
+@app.put("/system/status")
+def update_system_status(payload: SystemStatusRequest):
+    global SYSTEM_ACTIVE
+    SYSTEM_ACTIVE = payload.is_active
+    
+    durum = "🟢 SİSTEM AKTİF (TRAFİK AÇIK)" if SYSTEM_ACTIVE else "🚨 KİLL SWITCH TETİKLENDİ! (TRAFİK KESİLDİ)"
+    print("\n" + "!"*50)
+    print(durum)
+    print("!"*50 + "\n")
+    
+    return {"status": "updated", "is_active": SYSTEM_ACTIVE}
+
 # ========================================== #
 # 6. ANA MOTOR: METİN İŞLEME VE SANSÜR (CHAT)
 # ========================================== #
 @app.post("/chat", response_model=PromptResponse)
 async def process_prompt(payload: PromptRequest, db: Session = Depends(get_db)):
     try:
+        # --- KILL SWITCH KONTROLÜ ---
+        if not SYSTEM_ACTIVE:
+            return PromptResponse(
+                llm_response="[ AĞ BAĞLANTISI KESİLDİ ] Sistem yöneticisi (CISO) kriz durumu nedeniyle tüm LLM trafiğini durdurdu.",
+                status="BLOCKED_BY_KILLSWITCH"
+            )
+        
         # 1. Aşama: DLP Motoru ile Metni Tarama ve Maskeleme
         analiz = dlp_agent.sanitize_text(payload.prompt)
         
