@@ -3,6 +3,7 @@ import SwiftUI
 struct DashboardView: View {
     // 1. GERÇEK VERİ BAĞLANTISI BURADA BAŞLIYOR
     @StateObject private var viewModel = DashboardViewModel()
+    @ObservedObject var lang = LanguageManager.shared // DİL YÖNETİCİSİ EKLENDİ
     
     let columns = [
         GridItem(.flexible()),
@@ -18,7 +19,7 @@ struct DashboardView: View {
                     VStack(alignment: .leading, spacing: 25) {
                         
                         // --- 1. ÜST KISIM: DİNAMİK ÖZET KARTLARI ---
-                        Text("SİSTEM ÖZETİ")
+                        Text(localized("SİSTEM ÖZETİ", "SYSTEM SUMMARY"))
                             .font(.headline)
                             .foregroundColor(.green)
                             .tracking(2)
@@ -26,10 +27,10 @@ struct DashboardView: View {
                         
                         LazyVGrid(columns: columns, spacing: 15) {
                             // Değerleri viewModel.logs üzerinden dinamik hesaplıyoruz!
-                            SummaryCard(title: "TARANAN PROMPT", value: "\(viewModel.logs.count)", icon: "cpu", color: .blue)
-                            SummaryCard(title: "AKTİF TEHDİTLER", value: "\(viewModel.logs.filter { !$0.detectedEntities.isEmpty }.count)", icon: "exclamationmark.triangle.fill", color: .red)
-                            SummaryCard(title: "GÜVENLİ SIZINTI", value: "\(viewModel.logs.filter { $0.isSecure }.count)", icon: "shield.checkerboard", color: .green)
-                            SummaryCard(title: "SİSTEM DURUMU", value: "STABİL", icon: "server.rack", color: .green)
+                            SummaryCard(title: localized("TARANAN PROMPT", "SCANNED PROMPTS"), value: "\(viewModel.logs.count)", icon: "cpu", color: .blue)
+                            SummaryCard(title: localized("AKTİF TEHDİTLER", "ACTIVE THREATS"), value: "\(viewModel.logs.filter { !$0.detectedEntities.isEmpty }.count)", icon: "exclamationmark.triangle.fill", color: .red)
+                            SummaryCard(title: localized("GÜVENLİ SIZINTI", "SECURED LEAKS"), value: "\(viewModel.logs.filter { $0.isSecure }.count)", icon: "shield.checkerboard", color: .green)
+                            SummaryCard(title: localized("SİSTEM DURUMU", "SYSTEM STATUS"), value: localized("STABİL", "STABLE"), icon: "server.rack", color: .green)
                         }
                         .padding(.horizontal)
                         
@@ -37,7 +38,7 @@ struct DashboardView: View {
                         
                         // --- 2. ALT KISIM: SON İHLALLER LİSTESİ ---
                         HStack {
-                            Text("SON GÜVENLİK İHLALLERİ")
+                            Text(localized("SON GÜVENLİK İHLALLERİ", "RECENT SECURITY BREACHES"))
                                 .font(.headline)
                                 .foregroundColor(.green)
                                 .tracking(2)
@@ -53,7 +54,7 @@ struct DashboardView: View {
                         .padding(.horizontal)
                         
                         if viewModel.logs.isEmpty {
-                            Text("Ağdan veriler çekiliyor veya henüz log yok...")
+                            Text(localized("Ağdan veriler çekiliyor veya henüz log yok...", "Fetching data from network or no logs yet..."))
                                 .font(.caption)
                                 .foregroundColor(.gray)
                                 .padding()
@@ -61,7 +62,11 @@ struct DashboardView: View {
                             VStack(spacing: 12) {
                                 // GERÇEK VERİLERİ (En yeniler üstte olacak şekilde) EKRANA BASIYORUZ
                                 ForEach(viewModel.logs.reversed()) { log in
-                                    IncidentRow(log: log)
+                                    NavigationLink(destination: IncidentDetailView(log: log)) {
+                                        IncidentRow(log: log)
+                                    }
+                                    // Apple'ın standart mavi tıklama rengini eziyoruz ki tasarımımız bozulmasın
+                                    .buttonStyle(PlainButtonStyle())
                                 }
                             }
                             .padding(.horizontal)
@@ -79,7 +84,7 @@ struct DashboardView: View {
     }
 }
 
-// Ozet Kartı Alt Bileşeni (Değişmedi, aynı mükemmel tasarım)
+// Ozet Kartı Alt Bileşeni
 struct SummaryCard: View {
     let title: String
     let value: String
@@ -114,9 +119,10 @@ struct SummaryCard: View {
     }
 }
 
-// Liste Satırı Alt Bileşeni - GERÇEK (AuditLog) MODELE UYARLANDI
+// Liste Satırı Alt Bileşeni
 struct IncidentRow: View {
-    let log: AuditLog // Artık sahte IncidentLog değil, backend'den gelen AuditLog
+    let log: AuditLog
+    @ObservedObject var lang = LanguageManager.shared // Satırların da dilden haberdar olması için
     
     var body: some View {
         HStack {
@@ -127,8 +133,9 @@ struct IncidentRow: View {
                     .foregroundColor(.white)
                 
                 // Backend'den gelen etiket dizisini arasına virgül koyarak yazdırıyoruz
-                let entities = log.detectedEntities.isEmpty ? "Yok" : log.detectedEntities.joined(separator: ", ")
-                Text("Tespit: \(entities)")
+                let noneText = localized("Yok", "None")
+                let entities = log.detectedEntities.isEmpty ? noneText : log.detectedEntities.joined(separator: ", ")
+                Text("\(localized("Tespit", "Detected")): \(entities)")
                     .font(.caption)
                     .foregroundColor(.gray)
             }
@@ -141,7 +148,7 @@ struct IncidentRow: View {
                     .font(.caption)
                     .foregroundColor(.gray)
                 
-                Text(log.isSecure ? "BLOCKED" : "PASS")
+                Text(log.isSecure ? localized("BLOCKED", "BLOCKED") : localized("PASS", "PASS"))
                     .font(.caption2)
                     .bold()
                     .padding(.horizontal, 8)

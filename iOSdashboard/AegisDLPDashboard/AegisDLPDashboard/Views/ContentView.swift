@@ -3,6 +3,7 @@ import SwiftUI
 struct ContentView: View {
     @StateObject private var viewModel = ContentViewModel()
     @State private var inputPrompt: String = ""
+    @ObservedObject var lang = LanguageManager.shared // Dil yöneticisi eklendi
     
     var body: some View {
         ZStack {
@@ -17,7 +18,7 @@ struct ContentView: View {
                         .font(.title2)
                         .foregroundColor(.green)
                     
-                    Text("AEGIS-DLP TERMINAL")
+                    Text(localized("AEGIS-DLP TERMİNALİ", "AEGIS-DLP TERMINAL"))
                         .font(.system(size: 22, weight: .bold, design: .monospaced))
                         .foregroundColor(.green)
                         .shadow(color: .green.opacity(0.6), radius: 5, x: 0, y: 0) // Neon parlaması
@@ -25,7 +26,7 @@ struct ContentView: View {
                 .padding(.top, 20)
                 
                 // --- İNPUT ALANI ---
-                TextField(">> LLM_prompt_giriniz...", text: $inputPrompt)
+                TextField(localized(">> LLM_prompt_giriniz...", ">> Enter_LLM_prompt..."), text: $inputPrompt)
                     .font(.system(.body, design: .monospaced))
                     .foregroundColor(.green)
                     .padding()
@@ -55,7 +56,7 @@ struct ContentView: View {
                     } else {
                         HStack {
                             Image(systemName: "lock.shield.fill")
-                            Text("GÜVENLİ GÖNDER")
+                            Text(localized("GÜVENLİ GÖNDER", "SECURE SEND"))
                                 .bold()
                         }
                         .font(.system(.headline, design: .monospaced))
@@ -76,7 +77,7 @@ struct ContentView: View {
                             .font(.system(.caption, design: .monospaced))
                             .foregroundColor(.gray)
                         
-                        Text(viewModel.statusMessage.isEmpty ? "[ STANDBY ]" : "[ \(viewModel.statusMessage.uppercased()) ]")
+                        Text(viewModel.statusMessage.isEmpty ? localized("[ BEKLEMEDE ]", "[ STANDBY ]") : "[ \(viewModel.statusMessage.uppercased()) ]")
                             .font(.system(.caption, design: .monospaced))
                             .foregroundColor(.green)
                             .bold()
@@ -90,7 +91,7 @@ struct ContentView: View {
                         .foregroundColor(.gray)
                     
                     ScrollView {
-                        Text(viewModel.llmResponse.isEmpty ? "Awaiting input..." : viewModel.llmResponse)
+                        Text(viewModel.llmResponse.isEmpty ? localized("Girdi bekleniyor...", "Awaiting input...") : viewModel.llmResponse)
                             .font(.system(.body, design: .monospaced))
                             .foregroundColor(.green)
                             .frame(maxWidth: .infinity, alignment: .leading)

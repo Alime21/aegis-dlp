@@ -1,19 +1,26 @@
 import SwiftUI
 
 struct MainTabView: View {
+    @ObservedObject var lang = LanguageManager.shared
+    
     var body: some View {
         TabView {
-            // 1. Sekme: Senin o yeşil terminal ekranın (ContentView)
+            // 1. Sekme: yeşil terminal ekranı (ContentView)
             ContentView()
                 .tabItem {
-                    Label("Terminal", systemImage: "terminal.fill")
+                    Label(localized("Terminal", "Terminal"), systemImage: "terminal.fill")
                 }
             
-            // 2. Sekme: Yeni yaptığımız izleme ekranı (DashboardView)
+            // 2. Sekme: Monitoring (DashboardView)
             DashboardView()
                 .tabItem {
-                    Label("Monitoring", systemImage: "chart.bar.xaxis")
+                    Label(localized("İzleme", "Monitoring"), systemImage: "chart.bar.xaxis")
                 }
+            // 3. SEKME: YENİ EKLEDİĞİMİZ POLİTİKALAR EKRENI
+            PoliciesView()
+                .tabItem {
+                    Label(localized("Kurallar", "Policies"), systemImage: "lock.shield.fill")
+                            }
         }
         .accentColor(.green)
     }

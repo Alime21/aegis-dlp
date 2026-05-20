@@ -53,4 +53,65 @@ class NetworkManager {
             let logs = try JSONDecoder().decode([AuditLog].self, from: data)
             return logs
         }
+    
+    // --- 1. Policies SUNUCUDAN ÇEK ---
+        func fetchPolicies() async throws -> PolicyConfig {
+            guard let url = URL(string: "\(baseURL)/policies") else { throw NetworkError.invalidURL }
+            let (data, _) = try await URLSession.shared.data(from: url)
+            return try JSONDecoder().decode(PolicyConfig.self, from: data)
+        }
+        
+    // --- 2. Policies SUNUCUDA GÜNCELLE ---
+        func updatePolicies(config: PolicyConfig) async throws {
+            guard let url = URL(string: "\(baseURL)/policies") else { throw NetworkError.invalidURL }
+            var request = URLRequest(url: url)
+            request.httpMethod = "PUT"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.httpBody = try JSONEncoder().encode(config)
+            
+            let (_, response) = try await URLSession.shared.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+                throw NetworkError.badResponse
+            }
+        }
+    
+    // --- 3. LOG İÇİN AKSİYON AL (ONAYLA / ENGELLE) ---
+        func updateLogAction(logId: Int, action: String) async throws {
+            guard let url = URL(string: "\(baseURL)/logs/\(logId)/action") else { throw NetworkError.invalidURL }
+            var request = URLRequest(url: url)
+            request.httpMethod = "PUT"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            
+            // Gönderilecek JSON paketini hazırlıyoruz: {"action": "APPROVED"}
+            let body = ["action": action]
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+            
+            let (_, response) = try await URLSession.shared.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+                throw NetworkError.badResponse
+            }
+        }
+    
+    // --- 4. SİSTEM DURUMUNU (KILL SWITCH) ÇEK VE GÜNCELLE ---
+        func fetchSystemStatus() async throws -> Bool {
+            guard let url = URL(string: "\(baseURL)/system/status") else { throw NetworkError.invalidURL }
+            let (data, _) = try await URLSession.shared.data(from: url)
+            let response = try JSONDecoder().decode([String: Bool].self, from: data)
+            return response["is_active"] ?? true
+        }
+        
+        func updateSystemStatus(isActive: Bool) async throws {
+            guard let url = URL(string: "\(baseURL)/system/status") else { throw NetworkError.invalidURL }
+            var request = URLRequest(url: url)
+            request.httpMethod = "PUT"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            
+            let body = ["is_active": isActive]
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+            
+            let (_, response) = try await URLSession.shared.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+                throw NetworkError.badResponse
+            }
+        }
 }
