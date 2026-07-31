@@ -8,6 +8,10 @@
 ## 📌 Overview
 Aegis-DLP is an autonomous, agent-based middleware designed to secure Large Language Model (LLM) communications. It acts as a Zero-Trust bridge between enterprise users and external AI providers, actively sanitizing Personally Identifiable Information (PII) such as Credit Cards, Passwords, and National IDs (TCKN) before they leave the corporate network.
 
+## Demo 
+
+https://github.com/user-attachments/assets/75741539-a3d2-4efb-93ff-11a7de51d865
+
 ## 🚀 Key Features (Proof of Concept)
 * **Real-Time PII Sanitization:** Intercepts outgoing prompts and replaces sensitive data with secure tokens (e.g., `<CREDIT_CARD>`) with zero latency.
 * **De-anonymization Engine:** Seamlessly re-injects the original context into the LLM's response before presenting it back to the user, ensuring a frictionless user experience.
